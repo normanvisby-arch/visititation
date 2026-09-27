@@ -1,0 +1,118 @@
+import { L } from '../levels.js';
+import { ja, tal } from '../helpers.js';
+
+export const mavesmerter = {
+  id: 'mavesmerter',
+  titel: 'Mavesmerter',
+  gruppe: 'Mave, tarm og urinveje',
+  soegeord: ['mave', 'bug', 'blindtarm', 'galde', 'ondt i maven', 'kolik'],
+  spoergsmaal: [
+    { id: 'shock', tekst: 'Er patienten bleg, klam, svimmel ved oprejsning eller har besvimet?', type: 'janej' },
+    { id: 'blod', tekst: 'Blodigt opkast/kaffegrumslignende opkast eller sort, tjæreagtig afføring?', type: 'janej' },
+    { id: 'kraftige', tekst: 'Er smerterne meget kraftige og konstante (kan ikke finde ro/ligger helt stille)?', type: 'janej' },
+    { id: 'pludselig', tekst: 'Opstod smerterne pludseligt og meget kraftigt?', type: 'janej' },
+    { id: 'graviditet', tekst: 'Kan patienten være gravid (udebleven/forsinket menstruation)?', type: 'janej', visHvis: (a, p) => p.kanVaereGravid && !p.gravid },
+    { id: 'testikel', tekst: 'Smerter eller hævelse i pungen/testiklen?', type: 'janej', visHvis: (a, p) => !p.erKvinde },
+    { id: 'ileus', tekst: 'Oppustet mave, ingen luft/afføring og opkastninger?', type: 'janej' },
+    { id: 'hoejre_nederst', tekst: 'Smerter nederst til højre i maven, evt. startet omkring navlen?', type: 'janej' },
+    { id: 'feber', tekst: 'Feber?', type: 'janej' },
+    { id: 'gulsot', tekst: 'Gulfarvning af hud eller øjne?', type: 'janej' },
+    { id: 'vaeske', tekst: 'Kan patienten ikke holde væske i sig?', type: 'janej' },
+    { id: 'uger', tekst: 'Hvor mange uger har smerterne varet?', type: 'tal', enhed: 'uger', min: 0, max: 520, valgfri: true },
+    { id: 'vaegttab', tekst: 'Uønsket vægttab, ændret afføringsmønster eller blod i afføringen gennem uger?', type: 'janej' },
+  ],
+  regler: [
+    { niveau: L.LIVSTRUENDE, hvis: (a) => ja(a, 'shock'), tekst: 'Mavesmerter med tegn på kredsløbspåvirkning/shock' },
+    { niveau: L.LIVSTRUENDE, hvis: (a, p) => ja(a, 'pludselig') && (p.alderAar ?? 0) >= 50 && ja(a, 'kraftige'), tekst: 'Pludselige kraftige smerter hos ≥ 50-årig – mulig aortaaneurisme' },
+    { niveau: L.AKUT, hvis: (a) => ja(a, 'blod'), tekst: 'Mulig blødning fra mave-tarmkanalen' },
+    { niveau: L.AKUT, hvis: (a) => ja(a, 'graviditet'), tekst: 'Mavesmerter og mulig graviditet – udelukke graviditet uden for livmoderen' },
+    { niveau: L.AKUT, hvis: (a) => ja(a, 'testikel'), tekst: 'Smerter i testiklen – mulig testikeltorsion (tidskritisk)' },
+    { niveau: L.AKUT, hvis: (a) => ja(a, 'ileus'), tekst: 'Mulig tarmslyng' },
+    { niveau: L.AKUT, hvis: (a) => ja(a, 'kraftige') || ja(a, 'pludselig'), tekst: 'Kraftige eller pludselige mavesmerter – mulig akut abdomen' },
+    { niveau: L.SAMME_DAG, hvis: (a) => ja(a, 'hoejre_nederst'), tekst: 'Mulig blindtarmsbetændelse' },
+    { niveau: L.SAMME_DAG, hvis: (a) => ja(a, 'feber'), tekst: 'Mavesmerter med feber' },
+    { niveau: L.SAMME_DAG, hvis: (a) => ja(a, 'gulsot'), tekst: 'Mavesmerter med gulsot' },
+    { niveau: L.SAMME_DAG, hvis: (a) => ja(a, 'vaeske'), tekst: 'Kan ikke holde væske i sig' },
+    { niveau: L.FAA_DAGE, hvis: (a) => ja(a, 'vaegttab'), tekst: 'Alarmsymptomer for mulig alvorlig sygdom (vægttab/ændret afføring)' },
+  ],
+  standard: (a) =>
+    (tal(a, 'uger') ?? 0) >= 2
+      ? { niveau: L.PLANLAGT, tekst: 'Langvarige, stabile mavesmerter uden alarmsymptomer' }
+      : { niveau: L.FAA_DAGE, tekst: 'Mavesmerter uden alarmsymptomer' },
+  raad: ['Spis let kost og drik rigeligt. Undgå smertestillende med ibuprofen/NSAID ved mavesmerter, indtil lægen har vurderet.'],
+  sikkerhedsnet: ['Kontakt straks ved tiltagende smerter, feber, blod i opkast/afføring, eller hvis patienten ikke kan holde væske i sig.'],
+};
+
+export const diarreOpkast = {
+  id: 'diarre_opkast',
+  titel: 'Diarré / opkastning',
+  gruppe: 'Mave, tarm og urinveje',
+  soegeord: ['diarré', 'opkast', 'omgangssyge', 'maveinfluenza', 'kvalme', 'roskildesyge'],
+  spoergsmaal: [
+    { id: 'galde', tekst: 'Grønt (galdefarvet) opkast?', type: 'janej' },
+    { id: 'hovedtraume', tekst: 'Er opkastningerne startet efter slag mod hovedet?', type: 'janej' },
+    { id: 'svaer_mave', tekst: 'Svære eller tiltagende mavesmerter?', type: 'janej' },
+    { id: 'dehydrering', tekst: 'Tegn på væskemangel: tør mund, meget lidt/ingen vandladning over 8 timer, svimmelhed ved oprejsning, indsunkne øjne?', type: 'janej' },
+    { id: 'holder_ikke', tekst: 'Kan ikke holde selv små mængder væske i sig?', type: 'janej' },
+    { id: 'blod', tekst: 'Blod i afføringen?', type: 'janej' },
+    { id: 'feber', tekst: 'Høj feber (over 39 °C)?', type: 'janej' },
+    { id: 'dage', tekst: 'Hvor mange dage har det varet?', type: 'tal', enhed: 'dage', min: 0, max: 365 },
+    { id: 'udland', tekst: 'Nylig udlandsrejse eller antibiotikabehandling?', type: 'janej' },
+  ],
+  regler: [
+    { niveau: L.AKUT, hvis: (a) => ja(a, 'galde'), tekst: 'Galdefarvet opkast – mulig tarmslyng' },
+    { niveau: L.AKUT, hvis: (a) => ja(a, 'hovedtraume'), tekst: 'Opkastning efter hovedtraume' },
+    { niveau: L.AKUT, hvis: (a) => ja(a, 'svaer_mave'), tekst: 'Svære mavesmerter' },
+    { niveau: L.AKUT, hvis: (a, p) => ja(a, 'dehydrering') && (p.erBarn || p.erAeldre), tekst: 'Væskemangel hos barn eller ældre' },
+    { niveau: L.SAMME_DAG, hvis: (a) => ja(a, 'dehydrering'), tekst: 'Tegn på væskemangel' },
+    { niveau: L.SAMME_DAG, hvis: (a) => ja(a, 'holder_ikke'), tekst: 'Kan ikke holde væske i sig' },
+    { niveau: L.SAMME_DAG, hvis: (a, p) => (p.alderMdr ?? 99) < 6, tekst: 'Diarré/opkast hos barn under 6 måneder' },
+    { niveau: L.SAMME_DAG, hvis: (a, p) => p.har('diabetes'), tekst: 'Diarré/opkast hos patient med diabetes – risiko for syreforgiftning/lavt blodsukker' },
+    { niveau: L.SAMME_DAG, hvis: (a) => ja(a, 'blod') && ja(a, 'feber'), tekst: 'Blodig diarré med feber' },
+    { niveau: L.FAA_DAGE, hvis: (a) => ja(a, 'blod'), tekst: 'Blod i afføringen' },
+    { niveau: L.FAA_DAGE, hvis: (a) => (tal(a, 'dage') ?? 0) >= 7, tekst: 'Diarré i mere end en uge – afføringsprøve' },
+    { niveau: L.FAA_DAGE, hvis: (a) => ja(a, 'udland'), tekst: 'Diarré efter udlandsrejse/antibiotika – afføringsprøve' },
+  ],
+  standard: () => ({ niveau: L.EGENOMSORG, tekst: 'Almindelig maveinfektion uden alarmsymptomer' }),
+  raad: [
+    'Drik små slurke ofte – gerne vand, saft eller væskeerstatning fra apoteket.',
+    'God håndhygiejne. Bliv hjemme fra arbejde/institution til 48 timer efter sidste opkast/diarré.',
+  ],
+  sikkerhedsnet: ['Kontakt igen ved tegn på væskemangel (ingen vandladning over 8 timer, tør mund, slaphed), blod i afføringen eller svære mavesmerter.'],
+};
+
+export const urinveje = {
+  id: 'urinveje',
+  titel: 'Urinvejssymptomer',
+  gruppe: 'Mave, tarm og urinveje',
+  soegeord: ['blærebetændelse', 'uvi', 'svie', 'tissetrang', 'urin', 'vandladning'],
+  spoergsmaal: [
+    { id: 'retention', tekst: 'Kan patienten slet ikke lade vandet, trods trang?', type: 'janej' },
+    { id: 'paavirket', tekst: 'Er patienten påvirket, forvirret eller har kulderystelser?', type: 'janej' },
+    { id: 'feber', tekst: 'Feber over 38 °C?', type: 'janej' },
+    { id: 'flanke', tekst: 'Smerter i flanken/lænden?', type: 'janej' },
+    { id: 'blod', tekst: 'Synligt blod i urinen?', type: 'janej' },
+    { id: 'kateter', tekst: 'Har patienten kateter?', type: 'janej' },
+    { id: 'gentagne', tekst: 'Tre eller flere urinvejsinfektioner inden for det seneste år?', type: 'janej' },
+    { id: 'udflaad', tekst: 'Udflåd eller mulighed for seksuelt overført infektion?', type: 'janej' },
+  ],
+  regler: [
+    { niveau: L.AKUT, hvis: (a) => ja(a, 'retention'), tekst: 'Akut urinretention' },
+    { niveau: L.AKUT, hvis: (a) => ja(a, 'paavirket'), tekst: 'Urinvejsinfektion med almen påvirkning – mulig urosepsis' },
+    { niveau: L.SAMME_DAG, hvis: (a) => ja(a, 'feber') || ja(a, 'flanke'), tekst: 'Mulig nyrebækkenbetændelse' },
+    { niveau: L.SAMME_DAG, hvis: (a, p) => p.gravid, tekst: 'Urinvejssymptomer hos gravid' },
+    { niveau: L.SAMME_DAG, hvis: (a, p) => (p.alderAar ?? 99) < 2, tekst: 'Mulig urinvejsinfektion hos barn under 2 år' },
+    { niveau: L.FAA_DAGE, hvis: (a, p) => p.erMand, tekst: 'Urinvejsinfektion hos mand (kompliceret)' },
+    { niveau: L.FAA_DAGE, hvis: (a, p) => p.erBarn, tekst: 'Urinvejsinfektion hos barn' },
+    { niveau: L.FAA_DAGE, hvis: (a) => ja(a, 'blod'), tekst: 'Synligt blod i urinen' },
+    { niveau: L.FAA_DAGE, hvis: (a) => ja(a, 'kateter'), tekst: 'Kateterbærer med symptomer' },
+    { niveau: L.FAA_DAGE, hvis: (a) => ja(a, 'udflaad'), tekst: 'Mulig kønssygdom/underlivsinfektion' },
+    { niveau: L.PLANLAGT, hvis: (a) => ja(a, 'gentagne'), tekst: 'Recidiverende urinvejsinfektioner – bør udredes' },
+  ],
+  standard: () => ({
+    niveau: L.FAA_DAGE,
+    tekst: 'Ukompliceret blærebetændelse – urinprøve afleveres, lægen vurderer ved telefonkonsultation',
+  }),
+  raad: ['Aflever urinprøve (morgenurin) i praksis. Drik rigeligt.'],
+  sikkerhedsnet: ['Kontakt samme dag ved feber, smerter i lænden, kulderystelser eller hvis patienten bliver påvirket.'],
+};

@@ -1,0 +1,140 @@
+import { L } from '../levels.js';
+import { ja, jaEllerUkendt, tal, valg } from '../helpers.js';
+
+export const brystsmerter = {
+  id: 'brystsmerter',
+  titel: 'Brystsmerter',
+  gruppe: 'Hjerte og kredsløb',
+  soegeord: ['bryst', 'hjerte', 'angina', 'trykken', 'stik'],
+  spoergsmaal: [
+    { id: 'smerter_nu', tekst: 'Har patienten smerter i brystet lige nu?', type: 'janej' },
+    { id: 'trykkende', tekst: 'Er smerten trykkende, klemmende eller snørende, evt. med udstråling til arm, hals, kæbe eller ryg?', type: 'janej' },
+    {
+      id: 'debut',
+      tekst: 'Hvornår startede/var der sidst smerter?',
+      type: 'valg',
+      valgmuligheder: [
+        { v: 'under_12t', t: 'Inden for de seneste 12 timer' },
+        { v: '12t_7d', t: '12 timer – 7 dage siden' },
+        { v: 'over_7d', t: 'Mere end 7 dage / gennem længere tid' },
+      ],
+    },
+    { id: 'aandenoed', tekst: 'Er der samtidig åndenød?', type: 'janej' },
+    { id: 'koldsved', tekst: 'Koldsved, kvalme, bleghed eller følelse af at være meget syg?', type: 'janej' },
+    { id: 'besvimelse', tekst: 'Har patienten besvimet eller været tæt på at besvime?', type: 'janej' },
+    { id: 'nitro', tekst: 'Har patienten taget nitroglycerin uden effekt?', type: 'janej', visHvis: (a, p) => p.har('hjertesygdom') },
+    { id: 'anstrengelse', tekst: 'Kommer smerterne ved anstrengelse og forsvinder ved hvile?', type: 'janej' },
+    { id: 'blodprop_risiko', tekst: 'Hævet/ømt ben, nylig operation, længere sengeleje eller lang flyrejse?', type: 'janej' },
+    { id: 'blodhoste', tekst: 'Hoster patienten blod op?', type: 'janej' },
+    { id: 'feber_hoste', tekst: 'Feber og hoste?', type: 'janej' },
+    { id: 'muskulaer', tekst: 'Er smerten tydeligt øm ved tryk på brystvæggen eller udløst af bevægelse af overkroppen (og ikke trykkende)?', type: 'janej' },
+  ],
+  regler: [
+    { niveau: L.LIVSTRUENDE, hvis: (a) => ja(a, 'smerter_nu') && jaEllerUkendt(a, 'trykkende'), tekst: 'Aktuelle trykkende brystsmerter – mistanke om akut koronart syndrom' },
+    { niveau: L.LIVSTRUENDE, hvis: (a) => ja(a, 'smerter_nu') && ja(a, 'aandenoed'), tekst: 'Brystsmerter med åndenød' },
+    { niveau: L.LIVSTRUENDE, hvis: (a) => ja(a, 'koldsved'), tekst: 'Brystsmerter med koldsved/almen påvirkning' },
+    { niveau: L.LIVSTRUENDE, hvis: (a) => ja(a, 'besvimelse'), tekst: 'Brystsmerter med besvimelse' },
+    { niveau: L.LIVSTRUENDE, hvis: (a) => ja(a, 'nitro'), tekst: 'Brystsmerter uden effekt af nitroglycerin' },
+    { niveau: L.AKUT, hvis: (a) => ja(a, 'trykkende') && valg(a, 'debut') === 'under_12t', tekst: 'Trykkende brystsmerter inden for 12 timer' },
+    { niveau: L.AKUT, hvis: (a) => ja(a, 'blodprop_risiko') && (ja(a, 'aandenoed') || ja(a, 'blodhoste')), tekst: 'Mistanke om lungeemboli' },
+    { niveau: L.AKUT, hvis: (a) => ja(a, 'blodhoste'), tekst: 'Blodig ekspektorat med brystsmerter' },
+    { niveau: L.SAMME_DAG, hvis: (a) => ja(a, 'trykkende') || ja(a, 'anstrengelse'), tekst: 'Mulige hjerteudløste smerter (ny/ændret angina)' },
+    { niveau: L.SAMME_DAG, hvis: (a) => ja(a, 'blodprop_risiko'), tekst: 'Brystsmerter med risiko for blodprop' },
+    { niveau: L.SAMME_DAG, hvis: (a) => ja(a, 'feber_hoste'), tekst: 'Brystsmerter med feber og hoste – mulig lungebetændelse' },
+  ],
+  standard: (a, p) =>
+    ja(a, 'muskulaer') && (p.alderAar ?? 99) < 40 && !p.har('hjertesygdom')
+      ? { niveau: L.FAA_DAGE, tekst: 'Brystvægssmerter hos yngre uden alarmsymptomer' }
+      : { niveau: L.SAMME_DAG, tekst: 'Brystsmerter uden alarmsymptomer – bør vurderes af læge i dag' },
+  raad: ['Undgå fysisk anstrengelse, indtil lægen har vurderet smerterne.'],
+  sikkerhedsnet: ['Ring 112 ved trykkende brystsmerter, der varer over 15 minutter, eller ved åndenød, koldsved eller besvimelse.'],
+};
+
+export const aandenoed = {
+  id: 'aandenoed',
+  titel: 'Åndenød / vejrtrækningsbesvær',
+  gruppe: 'Hjerte og kredsløb',
+  soegeord: ['åndenød', 'vejrtrækning', 'astma', 'kol', 'hvæsen', 'pibende', 'strubehoste'],
+  spoergsmaal: [
+    { id: 'tale', tekst: 'Har patienten svært ved at tale i hele sætninger pga. åndenød?', type: 'janej' },
+    { id: 'stridor', tekst: 'Høres pibende/hvæsende lyd ved INDÅNDING i hvile, eller savler/kan ikke synke (især barn)?', type: 'janej' },
+    { id: 'indtraekninger', tekst: 'Indtrækninger mellem ribben/under brystbenet, eller næseflip (barn)?', type: 'janej' },
+    { id: 'pludselig', tekst: 'Er åndenøden opstået pludseligt (minutter-timer)?', type: 'janej' },
+    { id: 'brystsmerter', tekst: 'Er der samtidig brystsmerter?', type: 'janej' },
+    { id: 'blodprop_risiko', tekst: 'Hævet/ømt ben, nylig operation, længere sengeleje eller lang flyrejse?', type: 'janej' },
+    { id: 'kendt_astma_kol', tekst: 'Har patienten kendt astma eller KOL?', type: 'janej' },
+    { id: 'inhalator_uden_effekt', tekst: 'Har patienten taget sin anfaldsmedicin uden tilstrækkelig effekt?', type: 'janej', visHvis: (a) => ja(a, 'kendt_astma_kol') },
+    { id: 'feber', tekst: 'Har patienten feber?', type: 'janej' },
+    { id: 'gradvis', tekst: 'Er åndenøden gradvist forværret over dage, evt. med hævede ben?', type: 'janej' },
+    { id: 'saturation', tekst: 'Iltmætning (hvis målt hjemme, fx pulsoximeter)', type: 'tal', enhed: '%', min: 50, max: 100, valgfri: true },
+  ],
+  regler: [
+    { niveau: L.LIVSTRUENDE, hvis: (a) => ja(a, 'tale'), tekst: 'Kan ikke tale i hele sætninger' },
+    { niveau: L.LIVSTRUENDE, hvis: (a) => ja(a, 'stridor'), tekst: 'Stridor/savlen – truede luftveje' },
+    { niveau: L.LIVSTRUENDE, hvis: (a) => ja(a, 'brystsmerter') && ja(a, 'pludselig'), tekst: 'Pludselig åndenød med brystsmerter' },
+    { niveau: L.LIVSTRUENDE, hvis: (a) => tal(a, 'saturation') !== undefined && tal(a, 'saturation') < 90, tekst: 'Iltmætning under 90 %' },
+    { niveau: L.AKUT, hvis: (a) => a.tale === 'ved_ikke', tekst: 'Taleevne/vejrtrækning kan ikke vurderes' },
+    { niveau: L.AKUT, hvis: (a) => ja(a, 'indtraekninger'), tekst: 'Indtrækninger/øget vejrtrækningsarbejde' },
+    { niveau: L.AKUT, hvis: (a) => ja(a, 'pludselig'), tekst: 'Pludseligt opstået åndenød' },
+    { niveau: L.AKUT, hvis: (a) => ja(a, 'blodprop_risiko'), tekst: 'Åndenød med risiko for blodprop – mulig lungeemboli' },
+    { niveau: L.AKUT, hvis: (a) => ja(a, 'inhalator_uden_effekt'), tekst: 'Astma/KOL uden effekt af anfaldsmedicin' },
+    { niveau: L.AKUT, hvis: (a) => ja(a, 'brystsmerter'), tekst: 'Åndenød med brystsmerter' },
+    { niveau: L.AKUT, hvis: (a) => { const s = tal(a, 'saturation'); return s !== undefined && s < 94 && !ja(a, 'kendt_astma_kol'); }, tekst: 'Iltmætning under 94 %' },
+    { niveau: L.AKUT, hvis: (a) => { const s = tal(a, 'saturation'); return s !== undefined && s < 92; }, tekst: 'Iltmætning under 92 %' },
+    { niveau: L.SAMME_DAG, hvis: (a) => ja(a, 'feber'), tekst: 'Åndenød med feber – mulig lungebetændelse' },
+    { niveau: L.SAMME_DAG, hvis: (a) => ja(a, 'gradvis'), tekst: 'Gradvist tiltagende åndenød – mulig hjertesvigt/forværring' },
+  ],
+  standard: () => ({ niveau: L.SAMME_DAG, tekst: 'Nyopstået åndenød bør vurderes af læge samme dag' }),
+  raad: ['Sid oprejst og hold ro. Brug anfaldsmedicin efter aftalt plan, hvis patienten har astma/KOL.'],
+  sikkerhedsnet: ['Ring 112 hvis patienten ikke kan tale i hele sætninger, bliver blålig om læberne eller bliver sløv.'],
+};
+
+export const hjertebanken = {
+  id: 'hjertebanken',
+  titel: 'Hjertebanken / uregelmæssig puls',
+  gruppe: 'Hjerte og kredsløb',
+  soegeord: ['puls', 'hjertebanken', 'arytmi', 'atrieflimren', 'palpitationer'],
+  spoergsmaal: [
+    { id: 'nu', tekst: 'Er der hjertebanken lige nu?', type: 'janej' },
+    { id: 'besvimelse', tekst: 'Besvimelse, næsten-besvimelse eller svimmelhed?', type: 'janej' },
+    { id: 'brystsmerter_aandenoed', tekst: 'Samtidige brystsmerter eller åndenød?', type: 'janej' },
+    { id: 'puls', tekst: 'Puls (hvis målt)', type: 'tal', enhed: 'slag/min', min: 10, max: 300, valgfri: true },
+    { id: 'varighed_timer', tekst: 'Hvor mange timer har det stået på (aktuelt anfald)?', type: 'tal', enhed: 'timer', min: 0, max: 2000, valgfri: true, visHvis: (a) => ja(a, 'nu') },
+    { id: 'kendt', tekst: 'Kendt og uændret tilstand, som patienten plejer at have?', type: 'janej' },
+  ],
+  regler: [
+    { niveau: L.LIVSTRUENDE, hvis: (a) => ja(a, 'nu') && (ja(a, 'besvimelse') || ja(a, 'brystsmerter_aandenoed')), tekst: 'Hjertebanken med besvimelse, brystsmerter eller åndenød' },
+    { niveau: L.AKUT, hvis: (a) => { const p = tal(a, 'puls'); return p !== undefined && (p > 150 || p < 40); }, tekst: 'Meget hurtig eller langsom puls' },
+    { niveau: L.AKUT, hvis: (a) => ja(a, 'besvimelse'), tekst: 'Hjertebanken med besvimelse' },
+    { niveau: L.SAMME_DAG, hvis: (a) => ja(a, 'nu') && !ja(a, 'kendt'), tekst: 'Aktuel, ny hjertebanken – EKG i dag' },
+    { niveau: L.SAMME_DAG, hvis: (a) => ja(a, 'nu') && (tal(a, 'varighed_timer') ?? 0) < 48, tekst: 'Anfald under 48 timer – mulighed for akut konvertering' },
+  ],
+  standard: () => ({ niveau: L.FAA_DAGE, tekst: 'Anfaldsvis hjertebanken uden alarmsymptomer' }),
+  raad: ['Notér hvornår anfaldene kommer og hvor længe de varer. Mål gerne pulsen under anfald.'],
+  sikkerhedsnet: ['Ring 112 ved hjertebanken med brystsmerter, åndenød eller besvimelse.'],
+};
+
+export const benhaevelse = {
+  id: 'benhaevelse',
+  titel: 'Hævet / smertende ben',
+  gruppe: 'Hjerte og kredsløb',
+  soegeord: ['ben', 'læg', 'blodprop', 'dvt', 'hævelse', 'ødem'],
+  spoergsmaal: [
+    { id: 'ensidig', tekst: 'Er hævelsen/smerten kun i det ene ben?', type: 'janej' },
+    { id: 'aandenoed', tekst: 'Er der samtidig åndenød, brystsmerter eller blodig hoste?', type: 'janej' },
+    { id: 'koldt_blegt', tekst: 'Er benet pludselig blevet koldt, bleget, følelsesløst eller meget smertende?', type: 'janej' },
+    { id: 'roedme_feber', tekst: 'Rødme, varme og feber?', type: 'janej' },
+    { id: 'blodprop_risiko', tekst: 'Nylig operation, gips, sengeleje, lang rejse, graviditet/p-piller eller tidligere blodprop?', type: 'janej' },
+    { id: 'hjertesvigt', tekst: 'Hævelse af begge ben med tiltagende åndenød eller vægtøgning?', type: 'janej' },
+  ],
+  regler: [
+    { niveau: L.LIVSTRUENDE, hvis: (a) => ja(a, 'aandenoed') && (ja(a, 'ensidig') || ja(a, 'blodprop_risiko')), tekst: 'Mistanke om lungeemboli' },
+    { niveau: L.AKUT, hvis: (a) => ja(a, 'koldt_blegt'), tekst: 'Mulig akut arteriel iskæmi' },
+    { niveau: L.SAMME_DAG, hvis: (a) => ja(a, 'ensidig'), tekst: 'Ensidig hævelse – mistanke om dyb venetrombose' },
+    { niveau: L.SAMME_DAG, hvis: (a) => ja(a, 'roedme_feber'), tekst: 'Mulig rosen (erysipelas)' },
+    { niveau: L.SAMME_DAG, hvis: (a) => ja(a, 'hjertesvigt'), tekst: 'Mulig hjertesvigt' },
+  ],
+  standard: () => ({ niveau: L.FAA_DAGE, tekst: 'Dobbeltsidig hævelse uden alarmsymptomer' }),
+  raad: ['Hvil med benene hævet.'],
+  sikkerhedsnet: ['Ring 112 ved pludselig åndenød eller brystsmerter.'],
+};

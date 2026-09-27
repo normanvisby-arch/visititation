@@ -1,0 +1,168 @@
+import { L } from '../levels.js';
+import { ja, jaEllerUkendt, tal } from '../helpers.js';
+
+export const graviditet = {
+  id: 'graviditet',
+  titel: 'Graviditet – blødning, smerter, bekymring',
+  gruppe: 'Graviditet, kvinder og børn',
+  soegeord: ['gravid', 'graviditet', 'blødning', 'veer', 'fostervand', 'fosterbevægelser', 'abort'],
+  gaelderFor: (p) => p.alderAar === undefined || p.kanVaereGravid,
+  gaelderForTekst: 'Kvinder 12-55 år',
+  spoergsmaal: [
+    { id: 'uge', tekst: 'Hvilken graviditetsuge?', type: 'tal', enhed: 'uge', min: 0, max: 44 },
+    { id: 'kraftig_bloedning', tekst: 'Blødning kraftigere end en menstruation?', type: 'janej' },
+    { id: 'besvimelse', tekst: 'Bleg, klam, svimmel eller besvimet?', type: 'janej' },
+    { id: 'ensidige_smerter', tekst: 'Ensidige eller kraftige mavesmerter?', type: 'janej' },
+    { id: 'fosterbevaegelser', tekst: 'Mærkbart færre eller ingen fosterbevægelser?', type: 'janej', visHvis: (a) => (tal(a, 'uge') ?? 0) >= 22 },
+    { id: 'vandafgang', tekst: 'Vandafgang (fostervand)?', type: 'janej', visHvis: (a) => (tal(a, 'uge') ?? 0) >= 18 },
+    { id: 'veer', tekst: 'Regelmæssige veer/sammentrækninger?', type: 'janej', visHvis: (a) => (tal(a, 'uge') ?? 0) >= 18 },
+    { id: 'praeeklampsi', tekst: 'Hovedpine, synsforstyrrelser (flimmer), smerter under højre ribbenskurve eller pludselige hævelser?', type: 'janej', visHvis: (a) => (tal(a, 'uge') ?? 0) >= 20 },
+    { id: 'kloee', tekst: 'Kløe i håndflader og fodsåler?', type: 'janej', visHvis: (a) => (tal(a, 'uge') ?? 0) >= 20 },
+    { id: 'hyperemesis', tekst: 'Kraftig kvalme/opkast – kan ikke holde væske i sig?', type: 'janej' },
+    { id: 'feber', tekst: 'Feber?', type: 'janej' },
+    { id: 'pletbloedning', tekst: 'Let pletblødning uden smerter?', type: 'janej' },
+  ],
+  regler: [
+    { niveau: L.LIVSTRUENDE, hvis: (a) => ja(a, 'besvimelse') && (ja(a, 'kraftig_bloedning') || ja(a, 'ensidige_smerter')), tekst: 'Blødning/smerter med kredsløbspåvirkning' },
+    { niveau: L.AKUT, hvis: (a) => ja(a, 'kraftig_bloedning'), tekst: 'Kraftig blødning i graviditet', rute: 'foedeafdeling' },
+    { niveau: L.AKUT, hvis: (a) => ja(a, 'ensidige_smerter') && (tal(a, 'uge') ?? 0) < 14, tekst: 'Mulig graviditet uden for livmoderen', rute: 'gynaekologi' },
+    { niveau: L.AKUT, hvis: (a) => ja(a, 'ensidige_smerter'), tekst: 'Kraftige mavesmerter i graviditet', rute: 'foedeafdeling' },
+    { niveau: L.AKUT, hvis: (a) => ja(a, 'fosterbevaegelser'), tekst: 'Nedsatte fosterbevægelser', rute: 'foedeafdeling' },
+    { niveau: L.AKUT, hvis: (a) => ja(a, 'vandafgang'), tekst: 'Vandafgang', rute: 'foedeafdeling' },
+    { niveau: L.AKUT, hvis: (a) => ja(a, 'veer') && (tal(a, 'uge') ?? 40) < 37, tekst: 'Mulig for tidlig fødsel', rute: 'foedeafdeling' },
+    { niveau: L.AKUT, hvis: (a) => ja(a, 'veer'), tekst: 'Fødsel i gang', rute: 'foedeafdeling' },
+    { niveau: L.AKUT, hvis: (a) => ja(a, 'praeeklampsi'), tekst: 'Mulig svangerskabsforgiftning', rute: 'foedeafdeling' },
+    { niveau: L.SAMME_DAG, hvis: (a) => ja(a, 'hyperemesis'), tekst: 'Graviditetsopkastninger med væskemangel' },
+    { niveau: L.SAMME_DAG, hvis: (a) => ja(a, 'feber'), tekst: 'Feber hos gravid' },
+    { niveau: L.SAMME_DAG, hvis: (a) => ja(a, 'kloee'), tekst: 'Mulig graviditetsbetinget leverpåvirkning (kolestase)' },
+    { niveau: L.FAA_DAGE, hvis: (a) => ja(a, 'pletbloedning'), tekst: 'Let pletblødning uden smerter' },
+  ],
+  standard: () => ({ niveau: L.PLANLAGT, tekst: 'Graviditetsrelateret spørgsmål uden alarmsymptomer' }),
+  raad: ['Gravide efter ca. uge 18-20 kan ved akutte graviditetsproblemer ringe direkte til fødeafdelingen.'],
+  sikkerhedsnet: ['Kontakt straks fødeafdeling/vagt ved blødning, vandafgang, færre fosterbevægelser, hovedpine med synsforstyrrelser eller smerter.'],
+};
+
+export const rygsmerter = {
+  id: 'rygsmerter',
+  titel: 'Rygsmerter',
+  gruppe: 'Muskler og led',
+  soegeord: ['ryg', 'lænd', 'iskias', 'hekseskud', 'diskusprolaps'],
+  spoergsmaal: [
+    { id: 'cauda', tekst: 'Føleforstyrrelse i skridtet, besvær med at lade vandet eller holde på afføringen?', type: 'janej' },
+    { id: 'lammelse', tekst: 'Tiltagende kraftnedsættelse/lammelse i benene?', type: 'janej' },
+    { id: 'aorta', tekst: 'Pludselige, voldsomme smerter i ryg/mave hos patient over 50 år, evt. med bleghed/svimmelhed?', type: 'janej' },
+    { id: 'feber', tekst: 'Feber eller almen sygdomsfølelse?', type: 'janej' },
+    { id: 'traume', tekst: 'Fald/traume, og patienten er over 50 år, har knogleskørhed eller er i binyrebarkhormon-behandling?', type: 'janej' },
+    { id: 'kraeft', tekst: 'Tidligere eller nuværende kræftsygdom?', type: 'janej' },
+    { id: 'hvilesmerter', tekst: 'Konstante natlige hvilesmerter eller uforklaret vægttab?', type: 'janej' },
+    { id: 'iskias', tekst: 'Udstråling ned i benet under knæet?', type: 'janej' },
+    { id: 'uger', tekst: 'Hvor mange uger har smerterne varet?', type: 'tal', enhed: 'uger', min: 0, max: 520 },
+  ],
+  regler: [
+    { niveau: L.LIVSTRUENDE, hvis: (a) => ja(a, 'aorta'), tekst: 'Mulig bristet aortaaneurisme' },
+    { niveau: L.AKUT, hvis: (a) => jaEllerUkendt(a, 'cauda'), tekst: 'Mulig cauda equina-syndrom' },
+    { niveau: L.AKUT, hvis: (a) => ja(a, 'lammelse'), tekst: 'Progredierende lammelse' },
+    { niveau: L.SAMME_DAG, hvis: (a) => ja(a, 'feber'), tekst: 'Rygsmerter med feber – mulig infektion' },
+    { niveau: L.SAMME_DAG, hvis: (a) => ja(a, 'traume'), tekst: 'Mulig sammenfaldsbrud' },
+    { niveau: L.FAA_DAGE, hvis: (a) => ja(a, 'kraeft'), tekst: 'Rygsmerter hos kræftpatient – mulige metastaser' },
+    { niveau: L.FAA_DAGE, hvis: (a) => ja(a, 'hvilesmerter'), tekst: 'Natlige hvilesmerter/vægttab' },
+    { niveau: L.PLANLAGT, hvis: (a) => ja(a, 'iskias'), tekst: 'Iskiassmerter uden lammelse' },
+    { niveau: L.PLANLAGT, hvis: (a) => (tal(a, 'uger') ?? 0) >= 6, tekst: 'Rygsmerter i mere end 6 uger' },
+  ],
+  standard: () => ({ niveau: L.EGENOMSORG, tekst: 'Uspecifikke rygsmerter uden alarmsymptomer' }),
+  raad: ['Hold dig i gang og undgå sengeleje. Varme og smertestillende efter indlægssedlen. De fleste rygsmerter går over inden for få uger.'],
+  sikkerhedsnet: ['Kontakt straks ved føleforstyrrelser i skridtet, problemer med vandladning/afføring eller lammelser.'],
+};
+
+export const diabetes = {
+  id: 'diabetes',
+  titel: 'Diabetes / blodsukker',
+  gruppe: 'Øvrige',
+  soegeord: ['blodsukker', 'diabetes', 'insulin', 'føling', 'hypoglykæmi', 'ketoacidose'],
+  spoergsmaal: [
+    { id: 'bs', tekst: 'Aktuelt blodsukker (hvis målt)', type: 'tal', enhed: 'mmol/l', min: 0, max: 60, valgfri: true },
+    { id: 'kan_ikke_spise', tekst: 'Lavt blodsukker/føling, og patienten kan ikke spise eller drikke sukker selv?', type: 'janej' },
+    { id: 'foeling_effekt', tekst: 'Har patienten haft føling, der er gået over efter sukker?', type: 'janej' },
+    { id: 'ketoacidose', tekst: 'Opkast, mavesmerter, dyb/hurtig vejrtrækning, meget tørstig eller ketoner i blod/urin?', type: 'janej' },
+    { id: 'sygdom', tekst: 'Akut sygdom (fx feber, opkast) med vedvarende højt blodsukker?', type: 'janej' },
+    { id: 'sulfonylurea', tekst: 'Behandles patienten med insulin eller sulfonylurinstof (fx glimepirid)?', type: 'janej', visHvis: (a) => ja(a, 'foeling_effekt') },
+  ],
+  regler: [
+    { niveau: L.LIVSTRUENDE, hvis: (a) => ja(a, 'kan_ikke_spise'), tekst: 'Svær hypoglykæmi – kan ikke indtage sukker' },
+    { niveau: L.AKUT, hvis: (a) => ja(a, 'ketoacidose'), tekst: 'Mulig diabetisk ketoacidose' },
+    { niveau: L.AKUT, hvis: (a) => { const b = tal(a, 'bs'); return b !== undefined && b < 3; }, tekst: 'Blodsukker under 3 mmol/l' },
+    { niveau: L.AKUT, hvis: (a) => (tal(a, 'bs') ?? 0) > 25, tekst: 'Blodsukker over 25 mmol/l' },
+    { niveau: L.SAMME_DAG, hvis: (a) => (tal(a, 'bs') ?? 0) > 20, tekst: 'Blodsukker over 20 mmol/l' },
+    { niveau: L.SAMME_DAG, hvis: (a) => ja(a, 'sygdom'), tekst: 'Diabetes med akut sygdom og højt blodsukker' },
+    { niveau: L.SAMME_DAG, hvis: (a) => ja(a, 'sulfonylurea'), tekst: 'Føling ved sulfonylurinstof/insulin – risiko for ny føling' },
+    { niveau: L.FAA_DAGE, hvis: (a) => ja(a, 'foeling_effekt'), tekst: 'Føling – behandlingen bør justeres' },
+  ],
+  standard: () => ({ niveau: L.PLANLAGT, tekst: 'Diabetesspørgsmål uden akutte tegn' }),
+  raad: ['Ved føling: indtag hurtigt sukker (fx 2 dl juice/sodavand med sukker), derefter et måltid. Mål blodsukker igen efter 15 minutter.'],
+  sikkerhedsnet: ['Ring 112 hvis patienten bliver bevidsthedspåvirket eller ikke kan indtage sukker.'],
+};
+
+export const forgiftning = {
+  id: 'forgiftning',
+  titel: 'Forgiftning / overdosis',
+  gruppe: 'Øvrige',
+  soegeord: ['forgiftning', 'overdosis', 'piller', 'kemikalie', 'giftlinjen', 'indtaget'],
+  spoergsmaal: [
+    { id: 'bevidsthed', tekst: 'Er patienten sløv, bevidsthedspåvirket, har kramper eller vejrtrækningsbesvær?', type: 'janej' },
+    { id: 'villet', tekst: 'Er indtagelsen sket med vilje (selvskade/selvmordsforsøg)?', type: 'janej' },
+    { id: 'aetsende', tekst: 'Ætsende stof (fx afløbsrens, opvaskemiddel til maskine) indtaget?', type: 'janej' },
+    { id: 'paracetamol', tekst: 'Paracetamol eller ukendt mængde medicin?', type: 'janej' },
+    { id: 'symptomer', tekst: 'Har patienten symptomer (kvalme, opkast, smerter, sløvhed)?', type: 'janej' },
+  ],
+  regler: [
+    { niveau: L.LIVSTRUENDE, hvis: (a) => jaEllerUkendt(a, 'bevidsthed'), tekst: 'Forgiftning med bevidstheds- eller vejrtrækningspåvirkning' },
+    { niveau: L.AKUT, hvis: (a) => ja(a, 'villet'), tekst: 'Villet forgiftning – akut somatisk og psykiatrisk vurdering', rute: 'giftlinjen' },
+    { niveau: L.AKUT, hvis: (a) => ja(a, 'aetsende'), tekst: 'Ætsende stof indtaget – fremkald IKKE opkast', rute: 'giftlinjen' },
+    { niveau: L.AKUT, hvis: (a) => ja(a, 'paracetamol'), tekst: 'Mulig paracetamolforgiftning – tidskritisk behandling', rute: 'giftlinjen' },
+    { niveau: L.AKUT, hvis: (a) => ja(a, 'symptomer'), tekst: 'Forgiftning med symptomer', rute: 'giftlinjen' },
+  ],
+  standard: () => ({ niveau: L.SAMME_DAG, tekst: 'Mulig forgiftning uden symptomer – kontakt Giftlinjen for vurdering', rute: 'giftlinjen' }),
+  raad: ['Fremkald ikke opkastning. Gem emballage/rester til identifikation.'],
+  sikkerhedsnet: ['Ring 112 ved sløvhed, kramper eller vejrtrækningsbesvær.'],
+};
+
+export const administrativt = {
+  id: 'administrativt',
+  titel: 'Recept, prøvesvar, attest m.m.',
+  gruppe: 'Administrativt',
+  soegeord: ['recept', 'medicin', 'fornyelse', 'prøvesvar', 'attest', 'henvisning', 'sygemelding', 'vaccination'],
+  spoergsmaal: [
+    { id: 'kritisk_medicin', tekst: 'Drejer det sig om livsvigtig medicin (fx insulin, epilepsimedicin, blodfortyndende, hjertemedicin), som slipper op inden for 2 dage?', type: 'janej' },
+    { id: 'bivirkning', tekst: 'Har patienten mistanke om alvorlig bivirkning (fx hævelse, udslæt, blødning, gulsot)?', type: 'janej' },
+    { id: 'akut_proevesvar', tekst: 'Er patienten blevet bedt om at kontakte lægen hurtigt pga. et prøvesvar?', type: 'janej' },
+  ],
+  regler: [
+    { niveau: L.SAMME_DAG, hvis: (a) => ja(a, 'kritisk_medicin'), tekst: 'Livsvigtig medicin slipper op – recept fornyes i dag' },
+    { niveau: L.SAMME_DAG, hvis: (a) => ja(a, 'bivirkning'), tekst: 'Mulig alvorlig bivirkning' },
+    { niveau: L.SAMME_DAG, hvis: (a) => ja(a, 'akut_proevesvar'), tekst: 'Prøvesvar kræver hurtig opfølgning' },
+  ],
+  standard: () => ({ niveau: L.PLANLAGT, tekst: 'Administrativ henvendelse – e-konsultation/receptfornyelse/telefontid' }),
+  raad: ['Receptfornyelse og ikke-hastende spørgsmål kan klares via e-konsultation eller praksis\' app/hjemmeside.'],
+  sikkerhedsnet: [],
+};
+
+export const andet = {
+  id: 'andet',
+  titel: 'Andet / ikke dækket af protokol',
+  gruppe: 'Øvrige',
+  soegeord: ['andet', 'uklart', 'diverse'],
+  spoergsmaal: [
+    { id: 'nyt', tekst: 'Er problemet nyopstået (inden for dage) og tiltagende?', type: 'janej' },
+    { id: 'smerter', tekst: 'Har patienten stærke smerter?', type: 'janej' },
+    { id: 'funktion', tekst: 'Har problemet medført, at patienten ikke kan klare sig selv som vanligt?', type: 'janej' },
+  ],
+  regler: [
+    { niveau: L.SAMME_DAG, hvis: (a) => ja(a, 'smerter'), tekst: 'Stærke smerter' },
+    { niveau: L.SAMME_DAG, hvis: (a) => ja(a, 'funktion'), tekst: 'Akut funktionstab' },
+    { niveau: L.FAA_DAGE, hvis: (a) => ja(a, 'nyt'), tekst: 'Nyopstået, tiltagende problem' },
+  ],
+  standard: () => ({ niveau: L.FAA_DAGE, tekst: 'Henvendelse uden protokol – lægen bør godkende visitationen' }),
+  kraeverLaege: true,
+  raad: [],
+  sikkerhedsnet: ['Kontakt igen, hvis symptomerne forværres, eller der kommer nye symptomer.'],
+};

@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="da">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Telefonvisitation</title>
+  <link rel="stylesheet" href="app/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <h1>Telefonvisitation</h1>
+      <span class="sub">Beslutningsstøtte til almen praksis</span>
+    </div>
+    <div class="topbar-right">
+      <span id="clock" class="clock"></span>
+      <label class="region">Region
+        <select id="region"></select>
+      </label>
+      <button type="button" id="reset" class="btn btn-secondary">Ny visitation</button>
+    </div>
+    <div id="alarm" class="alarm" hidden></div>
+  </header>
+
+  <main class="layout">
+    <form id="form" class="flow" autocomplete="off" novalidate>
+      <section class="card" id="sec-patient">
+        <h2><span class="step">1</span> Opkald og patient</h2>
+        <div class="grid">
+          <label>Visitator (initialer)
+            <input id="visitator" type="text" maxlength="10" placeholder="fx AB">
+          </label>
+          <label>Rolle
+            <select id="rolle">
+              <option value="sekretær">Lægesekretær</option>
+              <option value="sygeplejerske">Sygeplejerske</option>
+              <option value="læge">Læge</option>
+              <option value="anden">Anden</option>
+            </select>
+          </label>
+          <label>Indringer
+            <select id="indringer">
+              <option value="patienten selv">Patienten selv</option>
+              <option value="forælder">Forælder</option>
+              <option value="pårørende">Anden pårørende</option>
+              <option value="plejepersonale/hjemmepleje">Plejepersonale/hjemmepleje</option>
+              <option value="andet sundhedspersonale">Andet sundhedspersonale</option>
+            </select>
+          </label>
+          <div class="age">
+            <span class="lbl">Alder</span>
+            <div class="row">
+              <label class="inline"><input id="alderAar" type="number" min="0" max="120" inputmode="numeric"> år</label>
+              <label class="inline"><input id="alderMdr" type="number" min="0" max="11" inputmode="numeric"> mdr.</label>
+            </div>
+          </div>
+          <fieldset class="seg">
+            <legend>Køn</legend>
+            <label><input type="radio" name="koen" value="kvinde"> Kvinde</label>
+            <label><input type="radio" name="koen" value="mand"> Mand</label>
+            <label><input type="radio" name="koen" value="andet"> Andet</label>
+          </fieldset>
+          <div id="gravid-wrap" class="gravid" hidden>
+            <label class="inline"><input id="gravid" type="checkbox"> Gravid</label>
+            <label class="inline" id="gravidUge-wrap" hidden>uge <input id="gravidUge" type="number" min="0" max="44"></label>
+          </div>
+        </div>
+        <details class="risk">
+          <summary>Risikofaktorer <span id="risk-count" class="count"></span></summary>
+          <div id="risiko" class="checks"></div>
+        </details>
+        <label class="full">Kontaktårsag med indringers egne ord
+          <input id="kontaktaarsag" type="text" placeholder="fx &quot;ondt i brystet siden i morges&quot;">
+        </label>
+      </section>
+
+      <section class="card" id="sec-screening">
+        <h2><span class="step">2</span> Livstruende symptomer (ABCDE)</h2>
+        <p class="hint">Stilles altid først. Ét "Ja" = ring 112 straks.</p>
+        <div id="screening" class="questions"></div>
+      </section>
+
+      <section class="card" id="sec-protokol">
+        <h2><span class="step">3</span> Kontaktårsag</h2>
+        <input id="soeg" type="search" placeholder="Søg symptom, fx feber, hoste, mave …" aria-label="Søg symptom">
+        <div id="protokolvalg" class="chips"></div>
+      </section>
+
+      <div id="protokoller"></div>
+
+      <section class="card" id="sec-mod">
+        <h2><span class="step" id="mod-step">5</span> Øvrige forhold</h2>
+        <div id="modifikatorer" class="checks"></div>
+      </section>
+
+      <section class="card" id="sec-afslut">
+        <h2><span class="step" id="afslut-step">6</span> Afslutning og journalnotat</h2>
+        <div class="grid">
+          <fieldset class="seg">
+            <legend>Har indringer forstået og accepteret planen?</legend>
+            <label><input type="radio" name="forstaaet" value="ja"> Ja</label>
+            <label><input type="radio" name="forstaaet" value="nej"> Nej</label>
+          </fieldset>
+          <label>Drøftet med/godkendt af læge (navn/initialer)
+            <input id="laegeKonsulteret" type="text">
+          </label>
+        </div>
+        <label class="full">Supplerende oplysninger
+          <textarea id="fritekst" rows="2"></textarea>
+        </label>
+        <div class="note-head">
+          <span class="lbl">Journalnotat</span>
+          <button type="button" id="kopier" class="btn">Kopiér notat</button>
+        </div>
+        <textarea id="notat" rows="16" readonly class="note"></textarea>
+      </section>
+    </form>
+
+    <aside class="result" id="result" aria-live="polite"></aside>
+  </main>
+
+  <button type="button" id="mini" class="mini" aria-label="Gå til resultat"></button>
+
+  <footer class="foot">
+    Beslutningsstøtte – erstatter ikke klinisk vurdering. Ved tvivl: kontakt lægen. Ingen patientdata gemmes af programmet.
+  </footer>
+
+  <script type="module" src="app/app.js"></script>
+</body>
+</html>
