@@ -6,7 +6,10 @@
   "private": true,
   "scripts": {
     "start": "node server.js",
-    "test": "node --test test/*.test.js"
+    "test": "node --test test/*.test.js",
+    "jev:katalog": "node scripts/eksporter-katalog.js",
+    "jev:start": "python3 -m jev.server",
+    "jev:test": "python3 -m unittest discover -s jev -p 'test_*.py'"
   },
   "engines": {
     "node": ">=18"

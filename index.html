@@ -72,6 +72,14 @@
         <label class="full">Kontaktårsag med indringers egne ord
           <input id="kontaktaarsag" type="text" placeholder="fx &quot;ondt i brystet siden i morges&quot;">
         </label>
+        <div id="jev" class="jev">
+          <div class="jev-head">
+            <button type="button" id="jev-knap" class="btn" disabled>Analysér med Jev</button>
+            <span id="jev-status" class="jev-status">Tjekker Jev …</span>
+          </div>
+          <p class="hint jev-hint">Jev (TypeSafe AI) foreslår protokol, hastegrad og mulige alarmsymptomer ud fra teksten. Forslagene kan kun hæve hastegraden. Skriv aldrig navn eller CPR-nummer.</p>
+          <div id="jev-resultat" aria-live="polite"></div>
+        </div>
       </section>
 
       <section class="card" id="sec-screening">

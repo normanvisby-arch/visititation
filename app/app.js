@@ -1,10 +1,10 @@
 import { visiter, MODIFIKATORER } from '../src/engine.js';
 import { SCREENING } from '../src/screening.js';
-import { hentProtokol, soegProtokoller } from '../src/protocols/index.js';
+import { PROTOKOLLER, hentProtokol, soegProtokoller } from '../src/protocols/index.js';
 import { RISIKOFAKTORER, patientKontekst } from '../src/helpers.js';
 import { DEFAULT_CONFIG, REGIONER } from '../src/config.js';
 import { lavJournalnotat } from '../src/journal.js';
-import { L } from '../src/levels.js';
+import { L, LEVELS } from '../src/levels.js';
 
 const $ = (sel) => document.querySelector(sel);
 const esc = (s) =>
@@ -36,6 +36,9 @@ function nyState() {
     risiko: new Set(),
     soeg: '',
     startet: new Date(),
+    jev: undefined, // seneste Jev-forslag
+    jevTekst: '', // teksten Jev analyserede
+    jevFejl: '',
   };
 }
 
@@ -89,9 +92,14 @@ function opdaterMarkering(root) {
 }
 
 function renderScreening() {
-  $('#screening').innerHTML = SCREENING.map((q) =>
-    janejHtml(`scr:${q.id}`, state.screening[q.id], q.tekst, q.niveau === L.LIVSTRUENDE ? 'red-flag' : 'orange-flag'),
-  ).join('');
+  $('#screening').innerHTML = SCREENING.map((q) => {
+    const p = state.jev?.screening?.[q.id];
+    const tag = p >= 0.5 ? ` <span class="jev-tag" title="Jev vurderer, at henvendelsen nævner dette">Jev ${Math.round(p * 100)} %</span>` : '';
+    return janejHtml(`scr:${q.id}`, state.screening[q.id], q.tekst, q.niveau === L.LIVSTRUENDE ? 'red-flag' : 'orange-flag').replace(
+      `${esc(q.tekst)}</div>`,
+      `${esc(q.tekst)}${tag}</div>`,
+    );
+  }).join('');
   opdaterMarkering($('#screening'));
 }
 
@@ -197,6 +205,10 @@ function opdaterProtokoller() {
 
 // ---------- Resultat ----------
 
+function levelBadgeHtml(id) {
+  return levelBadge({ id, farve: LEVELS[id].farve });
+}
+
 function levelBadge(info) {
   return `<span class="badge lvl-${info.id}">${esc(info.farve)}</span>`;
 }
@@ -211,6 +223,7 @@ function evaluer() {
     modifikatorer: state.modifikatorer,
     tidspunkt: nu,
     config: config(),
+    jev: state.jev,
   });
   sidsteResultat = resultat;
   renderResultat(resultat);
@@ -262,7 +275,7 @@ function renderResultat(r) {
         <h3>Begrundelse</h3>
         <ul class="reasons">${r.begrundelser
           .filter((b) => !b.standard || b.niveau === r.niveau)
-          .map((b) => `<li class="${b.niveau === r.niveau && !b.info ? 'decisive' : ''}">${levelBadge({ id: b.niveau, farve: ['Hvid', 'Blå', 'Grøn', 'Gul', 'Orange', 'Rød'][b.niveau] })} ${esc(b.tekst)} <span class="src">${esc(b.kilde)}</span></li>`)
+          .map((b) => `<li class="${b.niveau === r.niveau && !b.info ? 'decisive' : ''}">${levelBadgeHtml(b.niveau)} ${esc(b.tekst)} <span class="src">${esc(b.kilde)}</span></li>`)
           .join('')}</ul>
       </div>`
           : ''
@@ -310,7 +323,97 @@ function renderAlt() {
   renderProtokolvalg();
   renderProtokoller();
   renderModifikatorer();
+  renderJev();
   evaluer();
+}
+
+// ---------- Jev (TypeSafe AI) ----------
+
+let jevAktiv = false;
+
+async function tjekJev() {
+  const status = $('#jev-status');
+  try {
+    const r = await fetch('api/jev/status', { cache: 'no-store' });
+    if (!r.ok) throw new Error();
+    const s = await r.json();
+    jevAktiv = s.aktiv;
+    status.textContent = s.aktiv ? (s.simuleret ? 'SIMULERET Jev – kun til demonstration' : 'Jev aktiv') : `Jev ikke aktiv: ${s.tilstand}`;
+    status.classList.toggle('sim', Boolean(s.simuleret));
+  } catch {
+    jevAktiv = false;
+    status.textContent = 'Jev ikke tilgængelig – start med: npm run jev:start';
+  }
+  $('#jev-knap').disabled = !jevAktiv;
+}
+
+async function analyserMedJev() {
+  const tekst = $('#kontaktaarsag').value.trim();
+  if (!tekst) {
+    state.jevFejl = 'Skriv kontaktårsagen med indringers egne ord først.';
+    return renderJev();
+  }
+  const knap = $('#jev-knap');
+  knap.disabled = true;
+  knap.textContent = 'Analyserer …';
+  const p = patientInput();
+  try {
+    const r = await fetch('api/jev/vurder', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tekst, alderAar: p.alderAar, koen: p.koen }),
+    });
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(data.fejl || `Fejl ${r.status}`);
+    state.jev = data;
+    state.jevTekst = tekst;
+    state.jevFejl = '';
+  } catch (e) {
+    state.jevFejl = `${e.message} Visitér efter protokollen.`;
+  } finally {
+    knap.disabled = !jevAktiv;
+    knap.textContent = 'Analysér med Jev';
+  }
+  renderJev();
+  renderScreening();
+  evaluer();
+}
+
+function renderJev() {
+  const el = $('#jev-resultat');
+  if (state.jevFejl) {
+    el.innerHTML = `<div class="jev-box"><span class="err">${esc(state.jevFejl)}</span></div>`;
+    return;
+  }
+  const j = state.jev;
+  if (!j) {
+    el.innerHTML = '';
+    return;
+  }
+  const p = patientKontekst(patientInput());
+  const forslag = j.protokolForslag
+    .map((f) => ({ ...f, prot: PROTOKOLLER.find((x) => x.id === f.id) }))
+    .filter((f) => f.prot && (!f.prot.gaelderFor || p.alderAar === undefined || f.prot.gaelderFor(p)));
+  const niveau = LEVELS[j.hastegrad.niveau];
+  const stale = $('#kontaktaarsag').value.trim() !== state.jevTekst;
+  el.innerHTML = `
+    <div class="jev-box">
+      <div class="chips-row"><strong>Foreslåede protokoller:</strong>
+        ${
+          forslag.length
+            ? forslag
+                .map((f) => {
+                  const valgt = state.valgte.includes(f.id);
+                  return `<button type="button" class="chip ${valgt ? 'selected' : ''}" data-protokol="${f.id}" aria-pressed="${valgt}">${esc(f.prot.titel)} · ${Math.round(f.sandsynlighed * 100)} %</button>`;
+                })
+                .join('')
+            : '<span class="hint">ingen – vælg manuelt</span>'
+        }
+      </div>
+      <div>Jevs hastegrad: ${levelBadgeHtml(niveau.id)} ${esc(niveau.titel)} · sikkerhed ${Math.round(j.hastegrad.sikkerhed * 100)} % · livstruende ${Math.round(j.livstruende * 100)} %</div>
+      <div class="hint">Model: ${esc(j.model)} · ${esc(j.latensMs)} ms${j.sendtTekst !== state.jevTekst ? ' · personoplysninger fjernet før afsendelse' : ''}</div>
+      ${stale ? '<div class="stale">Teksten er ændret siden analysen – analysér igen.</div>' : ''}
+    </div>`;
 }
 
 // ---------- Hændelser ----------
@@ -354,6 +457,7 @@ function bind() {
       opdaterPatientFelter();
       renderProtokolvalg();
       opdaterProtokoller();
+      renderJev();
     }
     evaluer();
   });
@@ -370,6 +474,7 @@ function bind() {
       state.soeg = t.value;
       return renderProtokolvalg();
     }
+    if (t.id === 'kontaktaarsag' && state.jev) renderJev();
     if (t.type === 'text' || t.tagName === 'TEXTAREA') evaluer();
   });
 
@@ -378,6 +483,7 @@ function bind() {
     if (chip) {
       const id = chip.dataset.protokol;
       state.valgte = state.valgte.includes(id) ? state.valgte.filter((x) => x !== id) : [...state.valgte, id];
+      renderJev();
       renderProtokolvalg();
       renderProtokoller();
       evaluer();
@@ -386,6 +492,7 @@ function bind() {
     const fjern = e.target.closest('[data-fjern]');
     if (fjern) {
       state.valgte = state.valgte.filter((x) => x !== fjern.dataset.fjern);
+      renderJev();
       renderProtokolvalg();
       renderProtokoller();
       evaluer();
@@ -419,6 +526,11 @@ function bind() {
   $('#reset').addEventListener('click', () => {
     if (!confirm('Start ny visitation? Alle indtastninger slettes.')) return;
     nulstil();
+  });
+
+  $('#jev-knap').addEventListener('click', analyserMedJev);
+  $('#kontaktaarsag').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && jevAktiv) analyserMedJev();
   });
 
   $('#mini').addEventListener('click', () => $('#result').scrollIntoView({ behavior: 'smooth' }));
@@ -458,6 +570,7 @@ function init() {
   state = nyState();
   bind();
   renderAlt();
+  tjekJev();
   tickClock();
   setInterval(() => {
     tickClock();

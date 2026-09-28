@@ -77,6 +77,16 @@ export function lavJournalnotat(resultat, meta = {}) {
     linjer.push(`Supplerende: ${meta.fritekst}`);
   }
 
+  if (resultat.jev) {
+    const j = resultat.jev.forslag;
+    linjer.push('');
+    linjer.push(
+      `AI-beslutningsstøtte (Jev, ${j.model ?? 'ukendt model'}): hastegrad ${['hvid', 'blå', 'grøn', 'gul', 'orange', 'rød'][j.hastegrad?.niveau] ?? '?'} ` +
+        `(sikkerhed ${Math.round((j.hastegrad?.sikkerhed ?? 0) * 100)} %), livstruende ${Math.round((j.livstruende ?? 0) * 100)} %. ` +
+        'Forslaget er kun anvendt til at hæve hastegraden.',
+    );
+  }
+
   linjer.push('');
   linjer.push(`VURDERING: ${resultat.info.farve.toUpperCase()} – ${resultat.info.titel}.`);
   linjer.push(`Begrundelse: ${resultat.afgoerende.map((b) => b.tekst).join('; ')}.`);

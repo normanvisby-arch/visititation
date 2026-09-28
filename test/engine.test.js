@@ -243,3 +243,55 @@ test('journalnotat indeholder vurdering, begrundelse og sikkerhedsnet', () => {
   assert.match(note, /39,1 °C/);
   assert.match(note, /Sikkerhedsnet givet/);
 });
+
+// ---------- Jev (AI, System One) ----------
+
+const jevSvar = (o = {}) => ({
+  model: 'jev-test',
+  protokolForslag: [{ id: 'luftveje', sandsynlighed: 0.9 }],
+  protokolSikkerhed: 0.9,
+  hastegrad: { score: 0, niveau: 0, sikkerhed: 0.9, pAkut: 0 },
+  livstruende: 0.01,
+  uklar: 0.01,
+  screening: {},
+  ...o,
+});
+
+test('Jev kan ikke sænke den regelbaserede hastegrad', () => {
+  const r = kør('brystsmerter', voksen, { trykkende: 'ja', debut: 'under_12t' }, { jev: jevSvar() });
+  assert.equal(r.niveau, L.AKUT);
+  assert.ok(r.begrundelser.some((b) => /lavere hastegrad/.test(b.tekst)));
+});
+
+test('Jev kan hæve hastegraden og kræver så lægegodkendelse', () => {
+  const r = kør('luftveje', voksen, {}, { jev: jevSvar({ hastegrad: { score: 3.1, niveau: 3, sikkerhed: 0.9, pAkut: 0.1 } }) });
+  assert.equal(r.niveau, L.SAMME_DAG);
+  assert.equal(r.kraeverLaege, true);
+});
+
+test('Jev kan højst hæve til orange – aldrig selv udløse 112', () => {
+  const r = kør('luftveje', voksen, {}, { jev: jevSvar({ hastegrad: { score: 5, niveau: 5, sikkerhed: 0.99, pAkut: 1 }, livstruende: 0.97 }) });
+  assert.equal(r.niveau, L.AKUT);
+  assert.ok(r.advarsler.some((a) => /ABCDE-screeningen/.test(a)));
+});
+
+test('Jev med lav sikkerhed eller uklar tekst kræver lægegodkendelse uden at ændre niveau', () => {
+  const lav = kør('luftveje', voksen, {}, { jev: jevSvar({ protokolSikkerhed: 0.5 }) });
+  assert.equal(lav.niveau, L.EGENOMSORG);
+  assert.equal(lav.kraeverLaege, true);
+  const uklar = kør('luftveje', voksen, {}, { jev: jevSvar({ uklar: 0.8 }) });
+  assert.equal(uklar.kraeverLaege, true);
+  const sikker = kør('luftveje', voksen, {}, { jev: jevSvar() });
+  assert.equal(sikker.kraeverLaege, false);
+});
+
+test('Jev: høj sandsynlighed for akut giver mindst samme dag', () => {
+  const r = kør('luftveje', voksen, {}, { jev: jevSvar({ hastegrad: { score: 1, niveau: 1, sikkerhed: 0.8, pAkut: 0.4 } }) });
+  assert.equal(r.niveau, L.SAMME_DAG);
+});
+
+test('Jev-kataloget er synkront med protokollerne', async () => {
+  const { byggKatalog, KATALOG_STI } = await import('../scripts/eksporter-katalog.js');
+  const { readFileSync } = await import('node:fs');
+  assert.deepEqual(JSON.parse(readFileSync(KATALOG_STI, 'utf8')), byggKatalog(), 'Kør: npm run jev:katalog');
+});

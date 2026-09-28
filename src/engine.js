@@ -8,9 +8,9 @@
 //     visitators mavefornemmelse) kan kun hæve – aldrig sænke – hastegraden.
 //  4. Den samlede hastegrad er den højeste af alle bidrag.
 
-import { L, levelInfo } from './levels.js';
+import { L, LEVELS, levelInfo } from './levels.js';
 import { patientKontekst, RISIKOFAKTORER } from './helpers.js';
-import { evaluerScreening } from './screening.js';
+import { SCREENING, evaluerScreening } from './screening.js';
 import { hentProtokol } from './protocols/index.js';
 import { DEFAULT_CONFIG, erAaben, vagtNummer } from './config.js';
 
@@ -106,6 +106,7 @@ export function visiter({
   modifikatorer = {},
   tidspunkt = new Date(),
   config = DEFAULT_CONFIG,
+  jev,
 } = {}) {
   const p = patientKontekst(patient);
   const begrundelser = [];
@@ -165,6 +166,15 @@ export function visiter({
     }
   }
 
+  // 3c. Jev (AI, System One) – kan kun hæve hastegraden eller kræve lægegodkendelse.
+  const jevResultat = jev ? anvendJev(jev, niveau) : undefined;
+  if (jevResultat) {
+    begrundelser.push(...jevResultat.begrundelser);
+    advarsler.push(...jevResultat.advarsler);
+    niveau = jevResultat.niveau;
+    if (jevResultat.kraeverLaege) kraeverLaege = true;
+  }
+
   if (niveau >= L.AKUT) kraeverLaege = true;
 
   // 4. Disposition afhængig af åbningstid
@@ -203,9 +213,75 @@ export function visiter({
     sikkerhedsnet: [...new Set(sikkerhedsnet)],
     kraeverLaege,
     advarsler,
+    jev: jevResultat,
     protokolResultater,
     patient: p,
   };
+}
+
+// Tærskler for Jev-svar (kalibrerede sandsynligheder 0-1).
+export const JEV_TAERSKLER = Object.freeze({
+  sikkerhed: 0.75, // under denne sikkerhed skal lægen godkende (eskalering til "System 2")
+  livstruende: 0.5, // mulig livstruende tilstand → mindst orange + genafklar screening
+  pAkut: 0.3, // sandsynlighed for mindst orange → mindst gul
+  uklar: 0.5, // henvendelsen er uklar → lægen godkender
+});
+
+const pct = (x) => `${Math.round(x * 100)} %`;
+
+/**
+ * Indregner Jevs forslag efter forsigtighedsprincippet. Jev kan aldrig sænke den
+ * regelbaserede hastegrad og kan aldrig selv udløse rød (112) – det kræver, at
+ * visitator bekræfter et alarmsymptom i screeningen. Jev kan højst hæve til orange.
+ */
+export function anvendJev(jev, regelNiveau) {
+  const T = JEV_TAERSKLER;
+  const begrundelser = [];
+  const advarsler = [];
+  let niveau = regelNiveau;
+  let kraeverLaege = false;
+  const kilde = `Jev (${jev.model ?? 'AI'})`;
+  const hast = jev.hastegrad ?? {};
+  const loft = L.AKUT;
+
+  const haev = (til, tekst) => {
+    const nyt = Math.min(Math.max(niveau, til), loft);
+    if (nyt > niveau) {
+      begrundelser.push({ niveau: nyt, tekst, kilde });
+      niveau = nyt;
+      kraeverLaege = true;
+    }
+  };
+
+  if ((jev.livstruende ?? 0) >= T.livstruende && regelNiveau < L.LIVSTRUENDE) {
+    haev(L.AKUT, `Jev: mulig livstruende tilstand (${pct(jev.livstruende)}) – genafklar screeningen`);
+    advarsler.push(`Jev vurderer ${pct(jev.livstruende)} sandsynlighed for livstruende tilstand. Gennemgå ABCDE-screeningen igen – ring 112 ved bekræftet alarmsymptom.`);
+  }
+  if (Number.isInteger(hast.niveau) && hast.niveau > regelNiveau) {
+    haev(hast.niveau, `Jev vurderer højere hastegrad: ${LEVELS[Math.min(hast.niveau, L.LIVSTRUENDE)].farve.toLowerCase()} (sikkerhed ${pct(hast.sikkerhed ?? 0)})`);
+  }
+  if ((hast.pAkut ?? 0) >= T.pAkut) {
+    haev(L.SAMME_DAG, `Jev: ${pct(hast.pAkut)} sandsynlighed for akut tilstand`);
+  }
+  for (const [id, p] of Object.entries(jev.screening ?? {})) {
+    const navn = SCREENING.find((q) => q.id === id)?.begrundelse ?? id;
+    if (p >= T.livstruende) advarsler.push(`Jev: henvendelsen nævner muligvis "${navn.toLowerCase()}" (${pct(p)}) – afklar screeningsspørgsmålet.`);
+  }
+
+  const usikker = (hast.sikkerhed ?? 1) < T.sikkerhed || (jev.protokolSikkerhed ?? 1) < T.sikkerhed;
+  if (usikker || (jev.uklar ?? 0) >= T.uklar) {
+    kraeverLaege = true;
+    begrundelser.push({
+      niveau,
+      tekst: usikker ? 'Jev er usikker (< 75 %) – lægen skal godkende visitationen' : 'Jev: henvendelsen er uklar – lægen skal godkende visitationen',
+      kilde,
+      info: true,
+    });
+  }
+  if (Number.isInteger(hast.niveau) && hast.niveau < regelNiveau) {
+    begrundelser.push({ niveau: regelNiveau, tekst: 'Jev vurderer lavere hastegrad – den regelbaserede vurdering gælder', kilde, info: true });
+  }
+  return { niveau, begrundelser, advarsler, kraeverLaege, model: jev.model, forslag: jev };
 }
 
 export function dispositionFor(niveau, aaben, vagt) {

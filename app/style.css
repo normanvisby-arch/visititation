@@ -164,6 +164,19 @@ fieldset.seg label { flex-direction: row; align-items: center; gap: 4px; color: 
 .check { flex-direction: row; align-items: flex-start; gap: 8px; color: var(--text); font-size: 14px; }
 .check input { margin-top: 3px; }
 
+/* Jev */
+.jev { margin-top: 12px; padding: 12px; border: 1px dashed #a5b4fc; border-radius: 8px; background: #f5f7ff; }
+.jev-head { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; }
+.jev-status { font-size: 13px; color: var(--muted); }
+.jev-status.sim { color: #9a3412; font-weight: 600; }
+.jev-hint { margin: 8px 0 0; }
+.jev .btn:disabled { opacity: .5; cursor: not-allowed; }
+.jev-box { margin-top: 10px; display: grid; gap: 6px; font-size: 14px; }
+.jev-box .chips-row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.jev-box .stale { color: #9a3412; font-size: 13px; }
+.jev-box .err { color: var(--lvl-5); }
+.jev-tag { display: inline-block; margin-left: 6px; padding: 0 6px; border-radius: 4px; font-size: 12px; background: #ede9fe; color: #5b21b6; font-weight: 600; white-space: nowrap; }
+
 /* Spørgsmål */
 .questions { display: grid; gap: 8px; }
 .q {

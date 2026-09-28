@@ -19,6 +19,11 @@ const TILLADTE = ['index.html', `app${sep}`, `src${sep}`];
 createServer(async (req, res) => {
   try {
     let path = decodeURIComponent(new URL(req.url, 'http://x').pathname);
+    if (path === '/api/jev/status') {
+      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
+      res.end(JSON.stringify({ aktiv: false, simuleret: false, tilstand: 'start med "npm run jev:start" for at bruge Jev' }));
+      return;
+    }
     if (path.endsWith('/')) path += 'index.html';
     const rel = normalize(path).replace(/^[/\\]+/, '');
     if (!TILLADTE.some((t) => rel === t || rel.startsWith(t))) throw new Error('forbudt');

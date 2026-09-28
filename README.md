@@ -22,6 +22,60 @@ npm test       # kører testene af beslutningsmotoren
 Programmet kører udelukkende i browseren. **Der gemmes ingen patientdata** – kun valg af
 region huskes lokalt. Journalnotatet kopieres over i praksis' journalsystem.
 
+## Jev – AI-beslutningslag (TypeSafe AI)
+
+Programmet kan bruge [Jev](https://docs.typesafe.ai) fra TypeSafe AI, en ikke-autoregressiv
+"System One"-beslutningsmodel, som et hurtigt ekstra lag – efter mønstret fra
+[zazencodes' Jev-demo](https://github.com/zazencodes/zazencodes-season-3/tree/main/src/jev-system-one-model-python-demo).
+Indringers fritekst ("kontaktårsag") evalueres i **ét parallelt kald** med typede spørgsmål:
+
+| Spørgsmål          | Type     | Bruges til                                                 |
+|--------------------|----------|------------------------------------------------------------|
+| `kontaktaarsag`    | `Choice` | Forslag til symptomprotokol (klik for at vælge)             |
+| `hastegrad`        | `Score`  | Jevs bud på hastegrad (hvid → rød) med kalibreret sikkerhed |
+| `livstruende`      | `Noul`   | Sandsynlighed for livstruende tilstand                      |
+| `uklar`            | `Noul`   | Er henvendelsen for uklar til sikker vurdering              |
+| `screening__<id>`  | `Noul`   | Markerer ABCDE-spørgsmål, som teksten ser ud til at nævne   |
+
+### Sikkerhedsprincipper for Jev
+
+Jev er en AI-model og kan tage fejl. Derfor gælder (`anvendJev` i `src/engine.js`):
+
+- **Jev kan kun hæve hastegraden – aldrig sænke den regelbaserede vurdering.**
+- **Jev kan højst hæve til orange.** Rød/112 kræver, at visitator bekræfter et
+  alarmsymptom i screeningen. Ved livstruende ≥ 50 % bliver det orange, og der vises en
+  advarsel om at gennemgå screeningen igen.
+- **Lav sikkerhed (< 75 %) eller uklar tekst → lægen skal godkende visitationen**
+  (svarer til demoens "eskalér til System 2/menneske").
+- Når Jev hæver hastegraden, skal lægen altid orienteres.
+- Jev besvarer aldrig screeningsspørgsmålene – den markerer dem kun ("Jev 90 %").
+- Fejler Jev (netværk, nøgle, rate limit), visiteres der blot efter protokollerne.
+- Jevs bidrag skrives i journalnotatet.
+
+### Databeskyttelse
+
+Kun kontaktårsagen, alder og køn sendes til TypeSafe AI. Før afsendelse fjernes CPR-numre,
+telefonnumre og e-mailadresser automatisk, og brugerfladen beder om, at navne ikke
+skrives. **Helbredsoplysninger må først sendes til TypeSafe AI, når der er indgået en
+databehandleraftale, og behandlingen er vurderet efter GDPR (fx overførsel til tredjeland).**
+API-nøglen ligger kun på serveren.
+
+### Start med Jev
+
+```bash
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r jev/requirements.txt
+cp .env.example .env          # indsæt TYPESAFE_API_KEY
+npm run jev:start             # = python3 -m jev.server → http://127.0.0.1:8080
+
+python3 -m jev.server --simuler   # simuleret Jev uden nøgle (nøgleordsregler, ingen klinisk værdi)
+python3 -m jev.demo [--simuler]   # CLI-demo med eksempelhenvendelser
+npm run jev:test                  # Python-tests (bruger rigtig SDK med mock-transport)
+```
+
+Kataloget over protokoller, som Jev vælger imellem, genereres fra JavaScript-protokollerne:
+`npm run jev:katalog` (en test fejler, hvis det ikke er opdateret).
+
 ## Arbejdsgang
 
 1. **Opkald og patient** – visitator, indringer, alder, køn, graviditet og risikofaktorer.
@@ -146,6 +200,12 @@ src/protocols/        Symptomprotokoller
 src/journal.js        Journalnotat
 src/levels.js         Hastegrader
 src/config.js         Praksisopsætning, åbningstider, vagtnumre
-server.js             Lille statisk webserver
+server.js             Lille statisk webserver (uden Jev)
+jev/vurdering.py      Jev-spørgsmål, fortolkning og rensning af personoplysninger
+jev/server.py         Webserver med Jev-API
+jev/simuleret.py      Simuleret Jev til demo/test
+jev/demo.py           CLI-demo
+jev/katalog.json      Protokolkatalog (genereret)
+scripts/              Eksport af protokolkatalog
 test/                 Tests (node --test)
 ```
